@@ -2,7 +2,7 @@
 
 Generate a standup-ready status update from your Claude Code sessions. Run one command, automatically get a clean summary of what you built.
 
-[![License|86](https://img.shields.io/github/license/jarrodwatts/claude-stt)](LICENSE) [![Stars](https://img.shields.io/github/stars/AlexanderBZ/claude-status-update)](https://github.com/AlexanderBZ/claude-status-update)
+[![License|86](https://img.shields.io/github/license/AlexanderBZ/claude-status-update)](LICENSE) [![Stars](https://img.shields.io/github/stars/AlexanderBZ/claude-status-update)](https://github.com/AlexanderBZ/claude-status-update)
 
 ![cover](cover.png)
 
@@ -13,7 +13,7 @@ Inside a Claude Code instance, run the following commands:
 **Step 1: Add the marketplace**
 
 ```
-/plugin marketplace add [marketplace-url]
+/plugin marketplace add AlexanderBZ/claude-status-update
 ```
 
 **Step 2: Install the plugin**
