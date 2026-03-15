@@ -9,15 +9,15 @@ Generate a categorized standup report from the last 24 hours of Claude Code sess
 
 ## Step 1: Verify Python 3
 
-Run `python3 --version`. If the command fails, print:
+Run `python3 --version`. If the command fails, try `python --version` instead. If neither succeeds, or the version is below 3.10, print:
 
-> Python 3 is required but not installed. Install it from https://python.org and try again.
+> Python 3.10+ is required but not installed. Install it from https://python.org and try again.
 
-Then stop.
+Then stop. Use whichever command succeeded (`python3` or `python`) for all subsequent steps.
 
 ## Step 2: Run the parser
 
-Execute:
+Execute (using whichever Python command was found in Step 1):
 
 ```
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/status_update_parser.py"
@@ -59,7 +59,7 @@ Replace `$SESSION_SIGNALS` with the JSON-encoded signals array for that session.
 For each subagent response, extract the JSON array from the response text. Pipe it through the validation script:
 
 ```
-echo '$RESPONSE_JSON' | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validate_summary.py"
+echo '$RESPONSE_JSON' | python "${CLAUDE_PLUGIN_ROOT}/scripts/validate_summary.py"
 ```
 
 The script exits 0 if valid. If it exits non-zero, report the validation error and skip that session.

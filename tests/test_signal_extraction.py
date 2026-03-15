@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 from status_update_parser import (
+    derive_slug,
     parse_jsonl_entries,
     extract_user_messages,
     extract_ask_user_responses,
@@ -264,9 +265,12 @@ class TestWriteSignalsFile(unittest.TestCase):
 class TestMainExtract(unittest.TestCase):
     def test_writes_signals(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            project_path = "/tmp/test-project"
-            slug = project_path.replace("/", "-").replace(".", "-")
-            project_dir = Path(tmpdir) / slug
+            project_path = os.path.join(tmpdir, "test-project")
+            os.makedirs(project_path)
+
+            slug = derive_slug(os.path.abspath(project_path))
+            base_dir = os.path.join(tmpdir, "base")
+            project_dir = Path(base_dir) / slug
             project_dir.mkdir(parents=True)
 
             entries = [make_user_entry("Fix the auth bug", "2026-03-15T14:00:00Z")]
@@ -277,7 +281,7 @@ class TestMainExtract(unittest.TestCase):
             test_args = [
                 "status_update_parser.py",
                 project_path,
-                "--base-dir", tmpdir,
+                "--base-dir", base_dir,
                 "--output", str(output_path),
             ]
 

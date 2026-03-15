@@ -13,7 +13,7 @@ from typing import List, Optional, Tuple
 
 def derive_slug(cwd: str) -> str:
     """Transform a directory path into a project slug."""
-    return cwd.replace("/", "-").replace(".", "-").replace(" ", "-")
+    return cwd.replace("\\", "-").replace("/", "-").replace(".", "-").replace(" ", "-")
 
 
 def find_project_dir(slug: str, base_dir: Path) -> Optional[Path]:

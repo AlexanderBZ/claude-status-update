@@ -26,6 +26,9 @@ class TestDeriveSlug(unittest.TestCase):
     def test_derive_slug_with_spaces(self):
         self.assertEqual(derive_slug("/Users/foo/My Project"), "-Users-foo-My-Project")
 
+    def test_derive_slug_windows_path(self):
+        self.assertEqual(derive_slug("D:\\Users\\foo\\bar"), "D:-Users-foo-bar")
+
 
 class TestFindProjectDir(unittest.TestCase):
     def test_find_project_dir_exists(self):

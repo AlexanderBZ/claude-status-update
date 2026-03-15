@@ -9,7 +9,7 @@
       "name": "status-update",
       "source": "./",
       "description": "Generate a standup-ready status update from your Claude Code sessions. Run one command, automatically get a clean summary of what you built.",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "author": {
         "name": "Alexander Zwerner and Sebastian Tremblay",
         "url": "https://github.com/AlexanderBZ"
