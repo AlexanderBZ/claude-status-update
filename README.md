@@ -22,7 +22,7 @@ Inside a Claude Code instance, run the following commands:
 /plugin install status-update
 ```
 
-Done! Run `/status-update` in any project to generate your status update.
+Done! Run `/status-update:generate` in any project to generate your status update.
 
 ---
 
@@ -94,7 +94,7 @@ Standup-ready text output to stdout
 
 | Command          | Description                                                        |
 | ---------------- | ------------------------------------------------------------------ |
-| `/status-update` | Generate a standup summary for the current project (last 24 hours) |
+| `/status-update:generate` | Generate a standup summary for the current project (last 24 hours) |
 
 ---
 
@@ -106,22 +106,6 @@ Standup-ready text output to stdout
 - Python CLI runs entirely on-device
 - Scratch file is deleted after Claude reads it
 - No session data is sent anywhere beyond your local Claude instance
-
----
-
-## Contributing
-
-Want to improve Claude Status Update?
-
-1. Fork this repository
-2. Make your changes
-3. Submit a pull request
-
-Please ensure your contribution:
-
-- Addresses a real use case
-- Doesn't break existing functionality
-- Has been tested
 
 ---
 
