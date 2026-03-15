@@ -1,0 +1,31 @@
+{
+  "name": "alexanderbz-claude-status-update",
+  "owner": {
+    "name": "Alexander Werner",
+    "url": "https://github.com/AlexanderBZ"
+  },
+  "plugins": [
+    {
+      "name": "status-update",
+      "source": "./",
+      "description": "Generate a standup-ready status update from your Claude Code sessions. Run one command, automatically get a clean summary of what you built.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Alexander Werner",
+        "url": "https://github.com/AlexanderBZ"
+      },
+      "homepage": "https://github.com/AlexanderBZ/claude-status-update",
+      "repository": "https://github.com/AlexanderBZ/claude-status-update",
+      "license": "MIT",
+      "keywords": [
+        "standup",
+        "status-update",
+        "session",
+        "summary",
+        "productivity",
+        "changelog",
+        "daily"
+      ]
+    }
+  ]
+}

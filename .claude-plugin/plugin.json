@@ -1,0 +1,13 @@
+{
+  "name": "status-update",
+  "description": "Generate a standup-ready status update from your Claude Code sessions",
+  "version": "0.1.0",
+  "author": {
+    "name": "Alexander Werner",
+    "url": "https://github.com/AlexanderBZ"
+  },
+  "homepage": "https://github.com/AlexanderBZ/claude-status-update",
+  "repository": "https://github.com/AlexanderBZ/claude-status-update",
+  "license": "MIT",
+  "keywords": ["standup", "status-update", "session", "summary", "productivity", "changelog", "daily"]
+}
