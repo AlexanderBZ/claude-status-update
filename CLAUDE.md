@@ -5,6 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
+# Install dev dependencies
+uv sync
+
+# Run tests
+uv run python -m unittest discover -s tests
+
+# Lint
+uv run ruff check src/
+
 # Test locally with Claude Code
 claude --plugin-dir .
 ```
@@ -34,8 +43,12 @@ claude --plugin-dir .
 
 ### Plugin Structure
 
-- `.claude-plugin/plugin.json` — plugin metadata (name, command, entrypoint)
+- `.claude-plugin/plugin.json` — plugin metadata (name, version, author)
 - `.claude-plugin/marketplace.json` — marketplace listing metadata
+- `src/claude_status_update/` — Python package source
+  - `cli.py` — entry point (`claude_status_update.cli:main`)
+- `tests/` — unittest test suite
+- `pyproject.toml` — package config (hatchling build, uv dev deps: pytest, ruff)
 
 ## Output Format
 
@@ -54,7 +67,8 @@ claude --plugin-dir .
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.10–3.13
+- uv (package manager)
 - Claude Code with skill/plugin support
 
 ## Version Bumps
