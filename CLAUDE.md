@@ -43,12 +43,10 @@ claude --plugin-dir .
 
 ### Plugin Structure
 
-- `.claude-plugin/plugin.json` — plugin metadata (name, version, author)
-- `.claude-plugin/marketplace.json` — marketplace listing metadata
-- `src/claude_status_update/` — Python package source
-  - `cli.py` — entry point (`claude_status_update.cli:main`)
-- `tests/` — unittest test suite
-- `pyproject.toml` — package config (hatchling build, uv dev deps: pytest, ruff)
+- `commands/` - Slash commands (setup, start, stop, status, config) as markdown files
+- `hooks/hooks.json` - Claude Code plugin hooks
+- `scripts/setup.py` - Bootstrap script that handles venv creation, dependency install, model download
+- `.claude-plugin/plugin.json` - Plugin metadata
 
 ## Output Format
 
@@ -74,5 +72,6 @@ claude --plugin-dir .
 ## Version Bumps
 
 Update version in two files:
+
 - `.claude-plugin/plugin.json`
 - `.claude-plugin/marketplace.json`
