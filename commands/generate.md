@@ -5,7 +5,9 @@ allowed-tools: [Bash, Read, Agent]
 
 # Status Update
 
-Generate a categorized standup report from the last 24 hours of Claude Code sessions.
+Generate a categorized standup report from recent Claude Code sessions.
+
+Accepts an optional time range argument: a number followed by `h` (hours), `d` (days), or `w` (weeks). Examples: `24h`, `7d`, `2w`. Defaults to `24h` if omitted. Parse the argument into hours (e.g., `7d` = 168, `2w` = 336). Store the result as `$HOURS` for use in Step 2.
 
 ## Step 1: Verify Python 3
 
@@ -20,7 +22,7 @@ Then stop. Use whichever command succeeded (`python3` or `python`) for all subse
 Execute (using whichever Python command was found in Step 1):
 
 ```
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/status_update_parser.py"
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/status_update_parser.py" --hours $HOURS
 ```
 
 The script writes `.status-update/signals.json` and prints the file path to stdout. Do not delete this file after reading.
@@ -29,7 +31,7 @@ The script writes `.status-update/signals.json` and prints the file path to stdo
 
 Use the Read tool to read `.status-update/signals.json`. Parse its contents as JSON. If the `sessions` array is empty, inform the user:
 
-> No Claude Code activity found in the last 24 hours.
+> No Claude Code activity found in the specified time range.
 
 Then stop.
 
