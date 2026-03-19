@@ -35,9 +35,43 @@ Read these files to ground the thread in accurate product details:
 
 ## Step 3: Generate a hero image
 
-Generate a hero image for the first post. The image should visually represent the feature being promoted. Use the existing `cover.png` at `${CLAUDE_PLUGIN_ROOT}/cover.png` as a style reference for brand consistency (color palette, typography feel, layout approach).
+Generate a hero image for the first post using HTML rendered via Playwright.
 
-Save the generated image to `${CLAUDE_PLUGIN_ROOT}/cover-thread.png`. Reference this file as `[Attach: cover-thread.png]` in the hook post.
+### Process
+
+1. Write an HTML file to `${CLAUDE_PLUGIN_ROOT}/cover-thread.html`. The HTML should be a single self-contained file (inline CSS, no external dependencies) that renders at exactly 1200x675 pixels (the X recommended image size).
+2. Use Playwright to screenshot the HTML:
+   ```bash
+   npx playwright screenshot --viewport-size="1200,675" \
+     "${CLAUDE_PLUGIN_ROOT}/cover-thread.html" \
+     "${CLAUDE_PLUGIN_ROOT}/cover-thread.png"
+   ```
+3. Read back `cover-thread.png` to verify it looks correct. If it does not, revise the HTML and re-screenshot.
+4. Delete the HTML file after the final screenshot is captured.
+
+### Visual style
+
+Match the aesthetic of Anthropic's developer marketing on X. Study `${CLAUDE_PLUGIN_ROOT}/cover.png` as a brand reference. Key design principles:
+
+- **Background:** Soft gradient or muted solid (lavender, warm beige, or slate). No pure white, no pure black.
+- **Card element:** A rounded-corner white card with subtle box-shadow, centered on the background. The card contains the main content.
+- **Typography:** System sans-serif stack (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`). Large bold headline (32-40px). Lighter subtext (18-22px, muted gray).
+- **Accent color:** One brand accent for emphasis (a colored dot, underline, or small icon). Use sparingly.
+- **Terminal feel:** If relevant to the feature, include a monospace code snippet or command line inside the card (dark background, light text, rounded corners). This signals "built for developers."
+- **Whitespace:** Generous padding. The image should breathe. Less content is more impactful at thumbnail size.
+- **No stock imagery or clip art.** Typography and layout do the work.
+
+### Content on the image
+
+The image should communicate the feature at a glance. Include:
+
+- A short headline (5-8 words max) that names the feature or its core benefit
+- One line of supporting context or a code snippet showing the command in action
+- The plugin name or a subtle brand mark
+
+Do not try to fit the entire thread onto the image. The hero image is a visual hook, not an infographic.
+
+Reference this file as `[Attach: cover-thread.png]` in the hook post.
 
 ## Step 4: Generate the thread
 
