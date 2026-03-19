@@ -33,14 +33,20 @@ Read these files to ground the thread in accurate product details:
 - `${CLAUDE_PLUGIN_ROOT}/README.md` — plugin positioning, install instructions, value propositions
 - `${CLAUDE_PLUGIN_ROOT}/docs/guides/WRITING_STYLE.md` — prose style reference
 
-## Step 3: Generate the thread
+## Step 3: Generate a hero image
+
+Generate a hero image for the first post. The image should visually represent the feature being promoted. Use the existing `cover.png` at `${CLAUDE_PLUGIN_ROOT}/cover.png` as a style reference for brand consistency (color palette, typography feel, layout approach).
+
+Save the generated image to `${CLAUDE_PLUGIN_ROOT}/cover-thread.png`. Reference this file as `[Attach: cover-thread.png]` in the hook post.
+
+## Step 4: Generate the thread
 
 Write an X thread following ALL of these rules. Every rule matters.
 
 ### Thread structure
 
 - **5 to 10 posts total.** This is the sweet spot for developer engagement.
-- **Post 1 (the hook):** Under 280 characters. Tease a problem the reader has, or promise a concrete benefit. This post must reference a hero image: include `[Attach: cover.png]` on its own line after the post text. The hook decides whether anyone reads the rest. Make it count.
+- **Post 1 (the hook):** Under 280 characters. Tease a problem the reader has, or promise a concrete benefit. This post must reference the hero image: include `[Attach: cover-thread.png]` on its own line after the post text. The hook decides whether anyone reads the rest. Make it count.
 - **Posts 2 through N-1 (the body):** Under 280 characters each. One idea per post. Build a narrative arc: problem, then solution, then proof. Each post should make readers want to read the next one.
 - **Post N (the closer):** Include a clear call to action. Link the GitHub repo: `https://github.com/AlexanderBZ/claude-status-update`. End with a question that invites replies. Limit hashtags to 1-2 relevant ones, only in this final post.
 
@@ -50,8 +56,9 @@ These rules reflect what works on X for technical audiences in 2026:
 
 - **Hook with authority or a specific problem.** "I got tired of writing standups manually" beats "Excited to announce our new feature!" Generic openers get scrolled past.
 - **Show, do not tell.** Use concrete examples: "Run /status-update:generate. 30 seconds later, your standup is done." Specifics build credibility.
-- **Demonstrate technical depth.** Mention implementation details that signal competence: deterministic Python parsing, no LLM in the extraction pipeline, local-only processing, ephemeral scratch files. Developers respect builders who explain how things work.
+- **Demonstrate technical depth.** Mention implementation details that signal competence: deterministic Python parsing, no LLM in the extraction pipeline, ephemeral scratch files. Developers respect builders who explain how things work. Pick 1-2 details relevant to the feature being promoted, not a laundry list.
 - **Include social proof where available.** Star count, MIT license, two-command install. Low friction signals drive adoption.
+- **Do not over-anchor on privacy.** This is a Claude Code plugin that behaves like any Claude Code plugin. Local processing is worth a brief mention (one sentence, not a whole post), but dedicating an entire post to privacy signals insecurity rather than confidence. Spend that space on what the feature actually does.
 - **Write as a builder, not a marketer.** The tone is a developer sharing what they built with peers. No corporate voice. No hype words ("revolutionary", "game-changing", "excited to announce"). First person is fine.
 - **No hashtag spam.** One or two relevant tags at most, only in the final post. Developers distrust hashtag-heavy threads.
 - **Maximize early engagement potential.** The first 30 minutes after posting determine algorithmic reach. The thread should be designed to earn quick likes, replies, and reposts. Questions, surprising claims, and relatable pain points drive early interaction.
@@ -65,13 +72,30 @@ Adapted for social media from the project writing style guide:
 - No weak openers ("It is," "There is," "There are").
 - Contractions are allowed. Character efficiency matters at 280 chars. Sound natural.
 - Casual-technical tone. You are a builder talking to other builders.
-- Vary rhythm. Mix short punchy posts with slightly longer ones.
+
+### Sentence rhythm
+
+Each post should read like natural speech, not a telegram. Vary sentence length within a post. Avoid stacking multiple short fragments back-to-back: it reads choppy and robotic. Combine related ideas into flowing sentences. A post can have one short punchy sentence for emphasis, but the rest should breathe.
+
+**Bad — choppy, uncomfortable to read:**
+> Run the command. 30 seconds later: actionable feedback. Use plan mode more. Break complex prompts into smaller tasks. Describe intent before asking for code. Specific to your sessions.
+
+**Good — same ideas, natural flow:**
+> Run the command and get actionable feedback in 30 seconds: where you're over-prompting, which patterns waste cycles, and what to try differently. All specific to your actual sessions.
+
+**Bad — staccato list disguised as prose:**
+> It parses your sessions. Finds patterns. Classifies them. Gives you a summary. All local. All fast.
+
+**Good — connected, readable:**
+> It parses your session traces, finds patterns in how you work, and gives you a classified summary you can actually act on.
+
+The goal: each post should feel like one complete thought someone would say out loud, not a bullet list reformatted as sentences.
 
 ### Character counting
 
 Every post MUST be 280 characters or fewer. Count carefully. URLs count as 23 characters on X regardless of actual length. Emoji count as 2 characters. When in doubt, leave a buffer of 5-10 characters.
 
-## Step 4: Validate
+## Step 5: Validate
 
 Before outputting, construct a JSON object representing the thread and validate it:
 
@@ -93,7 +117,7 @@ The JSON format:
 
 If validation fails, revise the thread to fix the issue and re-validate. Do not output a thread that fails validation.
 
-## Step 5: Output the thread
+## Step 6: Output the thread
 
 Print the final thread in this format:
 
@@ -102,14 +126,14 @@ Print the final thread in this format:
 
 **Best posting window:** Tuesday-Thursday, 8-11 AM ET
 **Thread length:** N posts
-**Hero image:** Attach cover.png to the first post
+**Hero image:** Attach cover-thread.png to the first post
 
 ---
 
 [1/N] (142 chars)
 Post content here
 
-[Attach: cover.png]
+[Attach: cover-thread.png]
 
 ---
 
