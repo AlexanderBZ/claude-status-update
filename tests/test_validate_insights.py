@@ -17,16 +17,29 @@ def make_valid_insights():
             "project_slug": "-Users-test-project",
             "time_window_days": 7,
             "sessions_analyzed": 3,
+            "total_tool_calls": 100,
+            "total_user_messages": 20,
         },
-        "insights": [
-            {
-                "type": "excessive_exploration",
+        "categories": {
+            "exploration_patterns": {
+                "triggered": True,
                 "severity": "warning",
-                "recommendation": "80% of tool calls were exploration.",
+                "summary": "82% of categorized tool calls were exploration (82 of 100)",
+                "statistics": {"exploration_ratio": 0.82},
+                "evidence": {"files_read_multiple_times": []},
+            },
+        },
+        "session_profiles": [
+            {
+                "session_file": "s1.jsonl",
+                "tool_calls": 50,
+                "exploration_ratio": 0.8,
+                "errors": 2,
+                "corrections": 1,
             }
         ],
         "summary": {
-            "total_insights": 1,
+            "categories_triggered": 1,
             "severity_counts": {"warning": 1},
         },
     }
@@ -38,31 +51,42 @@ class TestValidate(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(msg, "OK")
 
-    def test_empty_insights_is_valid(self):
+    def test_empty_categories_is_valid(self):
         data = make_valid_insights()
-        data["insights"] = []
-        data["summary"]["total_insights"] = 0
+        data["categories"] = {}
+        data["session_profiles"] = []
+        data["summary"]["categories_triggered"] = 0
         data["summary"]["severity_counts"] = {}
         ok, _ = validate(data)
         self.assertTrue(ok)
 
-    def test_all_insight_types_valid(self):
-        for itype in [
-            "excessive_exploration",
-            "user_corrections",
+    def test_not_triggered_category_is_valid(self):
+        data = make_valid_insights()
+        data["categories"] = {
+            "exploration_patterns": {"triggered": False},
+        }
+        ok, msg = validate(data)
+        self.assertTrue(ok, msg)
+
+    def test_all_category_names_valid(self):
+        for name in [
+            "exploration_patterns",
+            "correction_events",
             "repeated_prompts",
             "tool_errors",
             "bash_misuse",
         ]:
             data = make_valid_insights()
-            data["insights"][0]["type"] = itype
+            data["categories"] = {
+                name: {"triggered": False},
+            }
             ok, msg = validate(data)
-            self.assertTrue(ok, "type {!r} should be valid: {}".format(itype, msg))
+            self.assertTrue(ok, "category {!r} should be valid: {}".format(name, msg))
 
     def test_both_severities_valid(self):
         for sev in ["info", "warning"]:
             data = make_valid_insights()
-            data["insights"][0]["severity"] = sev
+            data["categories"]["exploration_patterns"]["severity"] = sev
             ok, _ = validate(data)
             self.assertTrue(ok)
 
@@ -72,7 +96,7 @@ class TestValidate(unittest.TestCase):
         self.assertIn("object", msg)
 
     def test_missing_top_level_key(self):
-        for key in ("metadata", "insights", "summary"):
+        for key in ("metadata", "categories", "summary"):
             data = make_valid_insights()
             del data[key]
             ok, msg = validate(data)
@@ -80,47 +104,48 @@ class TestValidate(unittest.TestCase):
             self.assertIn(key, msg)
 
     def test_metadata_missing_field(self):
-        for field in ("generated_at", "project_slug", "time_window_days", "sessions_analyzed"):
+        for field in ("generated_at", "project_slug", "time_window_days",
+                       "sessions_analyzed", "total_tool_calls", "total_user_messages"):
             data = make_valid_insights()
             del data["metadata"][field]
             ok, msg = validate(data)
             self.assertFalse(ok)
             self.assertIn(field, msg)
 
-    def test_invalid_insight_type(self):
+    def test_invalid_category_name(self):
         data = make_valid_insights()
-        data["insights"][0]["type"] = "invalid_type"
+        data["categories"]["invalid_type"] = {"triggered": False}
         ok, msg = validate(data)
         self.assertFalse(ok)
         self.assertIn("invalid_type", msg)
 
     def test_invalid_severity(self):
         data = make_valid_insights()
-        data["insights"][0]["severity"] = "critical"
+        data["categories"]["exploration_patterns"]["severity"] = "critical"
         ok, msg = validate(data)
         self.assertFalse(ok)
         self.assertIn("critical", msg)
 
-    def test_empty_recommendation(self):
+    def test_empty_summary_field(self):
         data = make_valid_insights()
-        data["insights"][0]["recommendation"] = ""
+        data["categories"]["exploration_patterns"]["summary"] = ""
         ok, msg = validate(data)
         self.assertFalse(ok)
-        self.assertIn("recommendation", msg)
+        self.assertIn("summary", msg)
 
-    def test_missing_recommendation(self):
+    def test_missing_summary_field(self):
         data = make_valid_insights()
-        del data["insights"][0]["recommendation"]
+        del data["categories"]["exploration_patterns"]["summary"]
         ok, msg = validate(data)
         self.assertFalse(ok)
-        self.assertIn("recommendation", msg)
+        self.assertIn("summary", msg)
 
-    def test_missing_summary_total(self):
+    def test_missing_categories_triggered(self):
         data = make_valid_insights()
-        del data["summary"]["total_insights"]
+        del data["summary"]["categories_triggered"]
         ok, msg = validate(data)
         self.assertFalse(ok)
-        self.assertIn("total_insights", msg)
+        self.assertIn("categories_triggered", msg)
 
     def test_missing_severity_counts(self):
         data = make_valid_insights()
@@ -128,6 +153,20 @@ class TestValidate(unittest.TestCase):
         ok, msg = validate(data)
         self.assertFalse(ok)
         self.assertIn("severity_counts", msg)
+
+    def test_triggered_category_missing_statistics(self):
+        data = make_valid_insights()
+        del data["categories"]["exploration_patterns"]["statistics"]
+        ok, msg = validate(data)
+        self.assertFalse(ok)
+        self.assertIn("statistics", msg)
+
+    def test_triggered_category_missing_evidence(self):
+        data = make_valid_insights()
+        del data["categories"]["exploration_patterns"]["evidence"]
+        ok, msg = validate(data)
+        self.assertFalse(ok)
+        self.assertIn("evidence", msg)
 
 
 if __name__ == "__main__":

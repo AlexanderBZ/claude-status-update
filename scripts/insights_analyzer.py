@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sys
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -46,7 +47,7 @@ BASH_MISUSE_PATTERNS = [
 ]
 
 
-def extract_tool_uses(entries: List[dict]) -> List[dict]:
+def extract_tool_uses(entries):
     """Extract tool_use blocks from assistant entries."""
     results = []
     for entry in entries:
@@ -67,8 +68,8 @@ def extract_tool_uses(entries: List[dict]) -> List[dict]:
     return results
 
 
-def extract_tool_results(entries: List[dict]) -> List[dict]:
-    """Extract tool_result blocks from user entries."""
+def extract_tool_results(entries):
+    """Extract tool_result blocks from user entries, including error content."""
     results = []
     for entry in entries:
         if entry.get("type") != "user":
@@ -79,47 +80,173 @@ def extract_tool_results(entries: List[dict]) -> List[dict]:
             continue
         for block in content:
             if isinstance(block, dict) and block.get("type") == "tool_result":
+                error_content = ""
+                if block.get("is_error"):
+                    raw = block.get("content", "")
+                    if isinstance(raw, str):
+                        error_content = raw[:500]
+                    elif isinstance(raw, list):
+                        error_content = "".join(
+                            item.get("text", "") for item in raw if isinstance(item, dict)
+                        )[:500]
                 results.append({
                     "tool_use_id": block.get("tool_use_id", ""),
                     "is_error": bool(block.get("is_error", False)),
+                    "error_content": error_content,
                     "timestamp": entry.get("timestamp", ""),
                 })
     return results
 
 
-def detect_excessive_exploration(
-    tool_uses: List[dict], threshold: float = 0.7, min_calls: int = 10
-) -> Optional[dict]:
+def extract_conversation_turns(entries):
+    """Group entries into turns: user prompt -> assistant actions.
+
+    Returns: [{"prompt": str, "timestamp": str, "actions": [{"tool": str, "input_summary": str}]}]
+    """
+    turns = []
+    current_turn = None
+
+    for entry in entries:
+        entry_type = entry.get("type", "")
+        message = entry.get("message", {})
+        content = message.get("content") if isinstance(message, dict) else None
+
+        if entry_type == "user" and isinstance(content, str):
+            # New user text message starts a new turn
+            current_turn = {
+                "prompt": content,
+                "timestamp": entry.get("timestamp", ""),
+                "actions": [],
+            }
+            turns.append(current_turn)
+        elif entry_type == "assistant" and isinstance(content, list):
+            if current_turn is None:
+                # Assistant message without a preceding user prompt
+                current_turn = {
+                    "prompt": "",
+                    "timestamp": entry.get("timestamp", ""),
+                    "actions": [],
+                }
+                turns.append(current_turn)
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "tool_use":
+                    current_turn["actions"].append({
+                        "tool": block.get("name", ""),
+                        "input_summary": summarize_tool_input(
+                            block.get("name", ""), block.get("input", {})
+                        ),
+                    })
+
+    return turns
+
+
+def summarize_tool_input(tool_name, tool_input):
+    """Brief summary of tool call: file path for Read/Edit/Write, pattern for Grep/Glob, command for Bash."""
+    if tool_name in ("Read", "Edit", "Write"):
+        return tool_input.get("file_path", "unknown")
+    elif tool_name == "Grep":
+        return tool_input.get("pattern", "unknown")
+    elif tool_name == "Glob":
+        return tool_input.get("pattern", "unknown")
+    elif tool_name == "Bash":
+        return tool_input.get("command", "unknown")[:100]
+    return tool_name
+
+
+def normalize_message(text):
+    """Lowercase, strip, collapse whitespace, remove non-alphanumeric chars."""
+    text = text.lower().strip()
+    text = re.sub(r"[^a-z0-9\s]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def detect_excessive_exploration(tool_uses, entries, threshold=0.7, min_calls=10):
     """Detect when exploration tools dominate over action tools."""
     exploration_count = sum(1 for t in tool_uses if t["name"] in EXPLORATION_TOOLS)
     action_count = sum(1 for t in tool_uses if t["name"] in ACTION_TOOLS)
     total_categorized = exploration_count + action_count
 
     if total_categorized < min_calls:
-        return None
+        return {"triggered": False}
 
     exploration_ratio = exploration_count / total_categorized
     if exploration_ratio <= threshold:
-        return None
+        return {"triggered": False}
+
+    # Files read multiple times
+    read_paths = [
+        t["input"].get("file_path", "")
+        for t in tool_uses
+        if t["name"] == "Read" and t["input"].get("file_path")
+    ]
+    path_counts = Counter(read_paths)
+    files_read_multiple = [
+        {"path": path, "count": count}
+        for path, count in path_counts.most_common(10)
+        if count > 1
+    ]
+
+    # Exploration bursts from conversation turns
+    turns = extract_conversation_turns(entries)
+    bursts = []
+    for turn in turns:
+        actions = turn["actions"]
+        current_burst = []
+        for action in actions:
+            if action["tool"] in EXPLORATION_TOOLS:
+                current_burst.append(action["tool"])
+            elif action["tool"] in ACTION_TOOLS:
+                if len(current_burst) >= 5:
+                    bursts.append({
+                        "length": len(current_burst),
+                        "preceding_prompt": turn["prompt"][:150],
+                        "tools": list(current_burst),
+                    })
+                current_burst = []
+            # Tools not in either set do not break the burst
+        # Check at end of turn
+        if len(current_burst) >= 5:
+            bursts.append({
+                "length": len(current_burst),
+                "preceding_prompt": turn["prompt"][:150],
+                "tools": list(current_burst),
+            })
+    bursts.sort(key=lambda b: b["length"], reverse=True)
+
+    # Frequent search terms from Grep
+    grep_patterns = [
+        t["input"].get("pattern", "")
+        for t in tool_uses
+        if t["name"] == "Grep" and t["input"].get("pattern")
+    ]
+    term_counts = Counter(grep_patterns)
+    frequent_terms = [
+        {"term": term, "count": count}
+        for term, count in term_counts.most_common(10)
+    ]
 
     return {
-        "type": "excessive_exploration",
+        "triggered": True,
         "severity": "warning" if exploration_ratio > 0.8 else "info",
-        "exploration_ratio": exploration_ratio,
-        "exploration_count": exploration_count,
-        "action_count": action_count,
-        "total_tool_calls": len(tool_uses),
-        "recommendation": (
-            "{:.0%} of tool calls were spent searching or reading files. "
-            "Consider adding more context to your CLAUDE.md or providing "
-            "specific file paths in your prompts to reduce exploration overhead."
-        ).format(exploration_ratio),
+        "summary": "{:.0%} of categorized tool calls were exploration ({} of {})".format(
+            exploration_ratio, exploration_count, total_categorized
+        ),
+        "statistics": {
+            "exploration_ratio": exploration_ratio,
+            "exploration_count": exploration_count,
+            "action_count": action_count,
+            "total_tool_calls": len(tool_uses),
+        },
+        "evidence": {
+            "files_read_multiple_times": files_read_multiple,
+            "exploration_bursts": bursts[:5],
+            "frequent_search_terms": frequent_terms,
+        },
     }
 
 
-def detect_user_corrections(
-    user_messages: List[Tuple[str, str]], min_corrections: int = 2
-) -> Optional[dict]:
+def detect_user_corrections(user_messages, conversation_turns, session_map=None, min_corrections=2):
     """Detect messages where the user corrected Claude."""
     compiled = [re.compile(p) for p in CORRECTION_PATTERNS]
     corrections = []
@@ -129,35 +256,62 @@ def detect_user_corrections(
             corrections.append({"timestamp": timestamp, "content": content})
 
     if len(corrections) < min_corrections:
-        return None
+        return {"triggered": False}
 
-    examples = [c["content"] for c in corrections[:3]]
+    # Count sessions with corrections
+    sessions_with_corrections = 0
+    if session_map:
+        for _session_file, messages in session_map.items():
+            for _, content in messages:
+                if any(pat.search(content) for pat in compiled):
+                    sessions_with_corrections += 1
+                    break
+
+    # Build evidence events with context from conversation turns
+    events = []
+    for correction in corrections[:5]:
+        preceding_actions = []
+        original_prompt = ""
+
+        # Find the turn just before this correction timestamp
+        best_turn = None
+        for turn in conversation_turns:
+            if turn["timestamp"] and turn["timestamp"] < correction["timestamp"]:
+                best_turn = turn
+            elif turn["timestamp"] and turn["timestamp"] >= correction["timestamp"]:
+                break
+
+        if best_turn:
+            preceding_actions = [
+                a["input_summary"] for a in best_turn["actions"]
+            ][-3:]
+            original_prompt = best_turn["prompt"][:150]
+
+        events.append({
+            "correction": correction["content"][:200],
+            "preceding_actions": preceding_actions,
+            "original_prompt": original_prompt,
+        })
+
     return {
-        "type": "user_corrections",
+        "triggered": True,
         "severity": "warning",
-        "correction_count": len(corrections),
-        "examples": examples,
-        "recommendation": (
-            "Claude misunderstood your intent {} times across recent sessions. "
-            "Consider adding a Gotchas section to CLAUDE.md with examples of "
-            "common misunderstandings to prevent them."
-        ).format(len(corrections)),
+        "summary": "{} user corrections across {} sessions".format(
+            len(corrections), sessions_with_corrections
+        ),
+        "statistics": {
+            "correction_count": len(corrections),
+            "sessions_with_corrections": sessions_with_corrections,
+        },
+        "evidence": {
+            "events": events,
+        },
     }
 
 
-def normalize_message(text: str) -> str:
-    """Lowercase, strip, collapse whitespace, remove non-alphanumeric chars."""
-    text = text.lower().strip()
-    text = re.sub(r"[^a-z0-9\s]", "", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
-
-
-def detect_repeated_prompts(
-    user_messages: List[Tuple[str, str]], min_occurrences: int = 2
-) -> Optional[dict]:
+def detect_repeated_prompts(user_messages, session_map=None, min_occurrences=2):
     """Detect messages the user sent multiple times."""
-    groups: Dict[str, List[str]] = {}
+    groups = {}
 
     for _timestamp, content in user_messages:
         normalized = normalize_message(content)
@@ -172,63 +326,91 @@ def detect_repeated_prompts(
     ]
 
     if not repeated:
-        return None
+        return {"triggered": False}
 
-    example_tasks = ", ".join(g["example"][:60] for g in repeated[:3])
+    # Count sessions_seen_in for each repeated group
+    for group in repeated:
+        sessions_seen_in = 0
+        if session_map:
+            for _session_file, messages in session_map.items():
+                for _, content in messages:
+                    if normalize_message(content) == group["normalized"]:
+                        sessions_seen_in += 1
+                        break
+        group["sessions_seen_in"] = sessions_seen_in
+
+    # Sort by count descending, take top 5
+    repeated.sort(key=lambda g: g["count"], reverse=True)
+    top_groups = repeated[:5]
+
+    evidence_groups = [
+        {
+            "example": g["example"][:100],
+            "count": g["count"],
+            "sessions_seen_in": g["sessions_seen_in"],
+        }
+        for g in top_groups
+    ]
+
     return {
-        "type": "repeated_prompts",
+        "triggered": True,
         "severity": "info",
-        "repeated_groups": repeated,
-        "recommendation": (
-            "You repeated similar prompts multiple times. Consider creating "
-            "Claude Code slash commands for frequent tasks like: {}."
-        ).format(example_tasks),
+        "summary": "{} prompts repeated 2+ times across sessions".format(len(repeated)),
+        "statistics": {"group_count": len(repeated)},
+        "evidence": {
+            "groups": evidence_groups,
+        },
     }
 
 
-def detect_tool_errors(
-    tool_uses: List[dict],
-    tool_results: List[dict],
-    min_errors: int = 3,
-) -> Optional[dict]:
+def detect_tool_errors(tool_uses, tool_results, min_errors=3):
     """Detect high tool error rates, grouped by tool name."""
-    id_to_name = {t["id"]: t["name"] for t in tool_uses}
-    errors_by_tool: Dict[str, int] = {}
+    id_to_tool = {t["id"]: t for t in tool_uses}
+    errors_by_tool = {}
     total_errors = 0
+    error_examples = []
 
     for result in tool_results:
         if result["is_error"]:
-            tool_name = id_to_name.get(result["tool_use_id"], "unknown")
+            tool_use_id = result["tool_use_id"]
+            tool = id_to_tool.get(tool_use_id)
+            tool_name = tool["name"] if tool else "unknown"
             errors_by_tool[tool_name] = errors_by_tool.get(tool_name, 0) + 1
             total_errors += 1
 
+            if len(error_examples) < 5:
+                input_summary = ""
+                if tool:
+                    input_summary = summarize_tool_input(tool["name"], tool["input"])
+                error_examples.append({
+                    "tool": tool_name,
+                    "input_summary": input_summary,
+                    "error_content": result.get("error_content", "")[:200],
+                })
+
     if total_errors < min_errors:
-        return None
+        return {"triggered": False}
 
     total_tool_calls = len(tool_results)
     error_rate = total_errors / total_tool_calls if total_tool_calls > 0 else 0.0
 
-    top_tool = max(errors_by_tool, key=errors_by_tool.get)
-    top_count = errors_by_tool[top_tool]
-
     return {
-        "type": "tool_errors",
+        "triggered": True,
         "severity": "warning" if error_rate > 0.2 else "info",
-        "total_errors": total_errors,
-        "total_tool_calls": total_tool_calls,
-        "error_rate": error_rate,
-        "errors_by_tool": errors_by_tool,
-        "recommendation": (
-            "{} tool calls failed ({:.0%} error rate). "
-            "{} had the most failures ({}). "
-            "Review these patterns to improve prompt specificity."
-        ).format(total_errors, error_rate, top_tool, top_count),
+        "summary": "{} tool calls failed ({:.0%} error rate)".format(total_errors, error_rate),
+        "statistics": {
+            "total_errors": total_errors,
+            "total_tool_calls": total_tool_calls,
+            "error_rate": error_rate,
+            "errors_by_tool": errors_by_tool,
+        },
+        "evidence": {
+            "error_examples": error_examples,
+        },
     }
 
 
-def detect_bash_misuse(
-    tool_uses: List[dict], min_occurrences: int = 3
-) -> Optional[dict]:
+def detect_bash_misuse(tool_uses, min_occurrences=3):
     """Detect Bash calls that should have used dedicated tools."""
     bash_calls = [t for t in tool_uses if t["name"] == "Bash"]
     compiled = [(re.compile(p), suggested) for p, suggested in BASH_MISUSE_PATTERNS]
@@ -238,50 +420,111 @@ def detect_bash_misuse(
         command = call["input"].get("command", "")
         for pat, suggested in compiled:
             if pat.search(command):
-                misuses.append({"command": command, "suggested_tool": suggested})
+                misuses.append({"command": command[:100], "suggested_tool": suggested})
                 break
 
     if len(misuses) < min_occurrences:
-        return None
+        return {"triggered": False}
 
     return {
-        "type": "bash_misuse",
+        "triggered": True,
         "severity": "info",
-        "misuse_count": len(misuses),
-        "total_bash_calls": len(bash_calls),
-        "misuse_examples": misuses[:5],
-        "recommendation": (
-            "Claude used Bash for file operations {} times when dedicated "
-            "tools (Read, Grep, Glob) would be faster and more reliable."
-        ).format(len(misuses)),
+        "summary": "Claude used Bash for file operations {} times when dedicated tools exist".format(
+            len(misuses)
+        ),
+        "statistics": {
+            "misuse_count": len(misuses),
+            "total_bash_calls": len(bash_calls),
+        },
+        "evidence": {
+            "examples": misuses[:5],
+        },
     }
 
 
-def analyze_sessions(session_paths: List[Path], days: int = 7) -> dict:
+def build_session_profiles(session_data_list):
+    """Per-session summary statistics."""
+    compiled = [re.compile(p) for p in CORRECTION_PATTERNS]
+    profiles = []
+
+    for data in session_data_list:
+        tool_uses = data["tool_uses"]
+        exploration = sum(1 for t in tool_uses if t["name"] in EXPLORATION_TOOLS)
+        action = sum(1 for t in tool_uses if t["name"] in ACTION_TOOLS)
+        total_cat = exploration + action
+
+        errors = sum(1 for r in data["tool_results"] if r["is_error"])
+
+        corrections = sum(
+            1 for _, content in data["user_messages"]
+            if any(pat.search(content) for pat in compiled)
+        )
+
+        profiles.append({
+            "session_file": data["session_file"],
+            "tool_calls": len(tool_uses),
+            "exploration_ratio": round(exploration / total_cat, 2) if total_cat > 0 else 0.0,
+            "errors": errors,
+            "corrections": corrections,
+        })
+
+    profiles.sort(key=lambda p: p["tool_calls"], reverse=True)
+    return profiles[:20]
+
+
+def analyze_sessions(session_paths, days=7):
     """Run all detectors across aggregated session data."""
-    all_tool_uses: List[dict] = []
-    all_tool_results: List[dict] = []
-    all_user_messages: List[Tuple[str, str]] = []
+    all_tool_uses = []
+    all_tool_results = []
+    all_user_messages = []
+    all_entries = []
+    session_data_list = []
+    session_message_map = {}
 
     for path in session_paths:
         entries = parse_jsonl_entries(path)
-        all_tool_uses.extend(extract_tool_uses(entries))
-        all_tool_results.extend(extract_tool_results(entries))
-        all_user_messages.extend(extract_user_messages(entries))
+        tool_uses = extract_tool_uses(entries)
+        tool_results = extract_tool_results(entries)
+        user_messages = extract_user_messages(entries)
+        turns = extract_conversation_turns(entries)
 
-    detectors = [
-        detect_excessive_exploration(all_tool_uses),
-        detect_user_corrections(all_user_messages),
-        detect_repeated_prompts(all_user_messages),
-        detect_tool_errors(all_tool_uses, all_tool_results),
-        detect_bash_misuse(all_tool_uses),
-    ]
-    insights = [d for d in detectors if d is not None]
+        all_tool_uses.extend(tool_uses)
+        all_tool_results.extend(tool_results)
+        all_user_messages.extend(user_messages)
+        all_entries.extend(entries)
 
-    severity_counts: Dict[str, int] = {}
-    for insight in insights:
-        sev = insight["severity"]
-        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+        session_data_list.append({
+            "session_file": path.name,
+            "tool_uses": tool_uses,
+            "tool_results": tool_results,
+            "user_messages": user_messages,
+            "conversation_turns": turns,
+        })
+        session_message_map[path.name] = user_messages
+
+    all_turns = extract_conversation_turns(all_entries)
+
+    categories = {
+        "exploration_patterns": detect_excessive_exploration(all_tool_uses, all_entries),
+        "correction_events": detect_user_corrections(
+            all_user_messages, all_turns, session_map=session_message_map
+        ),
+        "repeated_prompts": detect_repeated_prompts(
+            all_user_messages, session_map=session_message_map
+        ),
+        "tool_errors": detect_tool_errors(all_tool_uses, all_tool_results),
+        "bash_misuse": detect_bash_misuse(all_tool_uses),
+    }
+
+    session_profiles = build_session_profiles(session_data_list)
+
+    severity_counts = {}
+    categories_triggered = 0
+    for cat in categories.values():
+        if cat.get("triggered"):
+            categories_triggered += 1
+            sev = cat.get("severity", "")
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
     slug = derive_slug(os.getcwd())
 
@@ -291,10 +534,13 @@ def analyze_sessions(session_paths: List[Path], days: int = 7) -> dict:
             "project_slug": slug,
             "time_window_days": days,
             "sessions_analyzed": len(session_paths),
+            "total_tool_calls": len(all_tool_uses),
+            "total_user_messages": len(all_user_messages),
         },
-        "insights": insights,
+        "categories": categories,
+        "session_profiles": session_profiles,
         "summary": {
-            "total_insights": len(insights),
+            "categories_triggered": categories_triggered,
             "severity_counts": severity_counts,
         },
     }
