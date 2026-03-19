@@ -1,5 +1,6 @@
 ---
 description: Generate a standup-ready status update from recent Claude Code sessions
+argument-hint: "[--all]"
 allowed-tools: [Bash, Read, Agent]
 ---
 
@@ -19,6 +20,14 @@ Then stop. Use whichever command succeeded (`python3` or `python`) for all subse
 
 Execute (using whichever Python command was found in Step 1):
 
+If the user passed `--all`, run:
+
+```
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/status_update_parser.py" --global
+```
+
+Otherwise, run:
+
 ```
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/status_update_parser.py"
 ```
@@ -33,12 +42,16 @@ Use the Read tool to read `.status-update/signals.json`. Parse its contents as J
 
 Then stop.
 
+If running in `--all` mode and sessions exist, print a brief note listing the project names found. Each session object may have a `project_name` field; list each unique project name, e.g.:
+
+> Found activity across projects: **project-a**, **project-b**, **project-c**
+
 ## Step 4: Summarize each session
 
 For each session in the `sessions` array, spawn a Haiku subagent (`model: "haiku"`) in parallel using the Agent tool. Provide the following prompt to each subagent, filling in the session signals:
 
 ```
-You are a work-item extractor. Analyze the following signals from a single Claude Code session and identify each distinct piece of work performed.
+You are a work-item extractor. Analyze the following signals from a single Claude Code session{{IN_PROJECT}} and identify each distinct piece of work performed.
 
 Return ONLY a JSON array of objects. Each object has exactly two fields:
 - "description": a concise summary of the work in imperative mood (e.g., "Fix login timeout", "Add dark mode toggle")
@@ -51,6 +64,8 @@ Do not include any text outside the JSON array. Do not wrap in markdown code fen
 Session signals:
 $SESSION_SIGNALS
 ```
+
+If the session object has a `project_name` field, replace `{{IN_PROJECT}}` with ` in the project "PROJECT_NAME"` (using the actual project name). Otherwise, replace `{{IN_PROJECT}}` with an empty string.
 
 Replace `$SESSION_SIGNALS` with the JSON-encoded signals array for that session.
 
@@ -66,7 +81,19 @@ The script exits 0 if valid. If it exits non-zero, report the validation error a
 
 ## Step 6: Aggregate and format
 
-Collect all validated work items across sessions. Group them by category. Write a 1-3 sentence executive summary that captures the overall thrust of the work. Follow the writing style rules in `docs/guides/WRITING_STYLE.md`: no contractions, active voice, no em dashes, no weak openers, present habitual tense.
+Collect all validated work items across sessions. Group them by category. Write a 1-3 sentence executive summary. Follow the writing style rules in `docs/guides/WRITING_STYLE.md`: no contractions, active voice, no em dashes, no weak openers, present habitual tense.
+
+If any session had a `project_name` field (i.e., `--all` mode), the executive summary should reflect the cross-project scope, capturing the overall thrust of work across all active projects. Format each line item with a project prefix:
+
+```
+- [project-name] description
+```
+
+Otherwise (single-project mode), the executive summary captures the overall thrust of the work without mentioning projects. Format each line item without a prefix:
+
+```
+- description
+```
 
 Format the final output as:
 

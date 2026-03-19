@@ -178,6 +178,57 @@ def write_signals_file(sessions: List[dict], output_path: Path) -> Path:
     return output_path
 
 
+def resolve_project_path(project_dir: Path) -> Optional[str]:
+    """Find the first .jsonl file in project_dir, read its first line, return the cwd field."""
+    try:
+        jsonl_files = sorted(p for p in project_dir.iterdir() if p.suffix == ".jsonl")
+        if not jsonl_files:
+            return None
+        with open(jsonl_files[0], "r", encoding="utf-8") as f:
+            first_line = f.readline().strip()
+        if not first_line:
+            return None
+        data = json.loads(first_line)
+        return data.get("cwd")
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def derive_project_name(project_path: str) -> str:
+    """Return the last path component of the given project path."""
+    return Path(project_path).name
+
+
+def discover_active_projects(base_dir: Path, cutoff: datetime) -> List[dict]:
+    """Iterate all subdirs of base_dir, return active projects with recent sessions."""
+    projects = []
+    for entry in base_dir.iterdir():
+        if not entry.is_dir():
+            continue
+        try:
+            recent = find_recent_sessions(entry, cutoff)
+        except PermissionError:
+            print(
+                "Warning: permission denied for {}".format(entry),
+                file=sys.stderr,
+            )
+            continue
+        if not recent:
+            continue
+        project_path = resolve_project_path(entry)
+        if project_path is not None:
+            project_name = derive_project_name(project_path)
+        else:
+            project_name = entry.name
+        projects.append({
+            "project_name": project_name,
+            "project_dir": entry,
+            "recent_sessions": recent,
+        })
+    projects.sort(key=lambda p: p["project_name"])
+    return projects
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Extract user signals from Claude Code session traces."
@@ -200,26 +251,44 @@ def main():
         default=Path.cwd() / ".status-update" / "signals.json",
         help="Path to write the extracted signals JSON file.",
     )
+    parser.add_argument(
+        "--global",
+        dest="global_mode",
+        action="store_true",
+        default=False,
+        help="Scan all projects instead of just the current one.",
+    )
     args = parser.parse_args()
 
-    slug = derive_slug(os.path.abspath(args.project_path))
-    project_dir = find_project_dir(slug, args.base_dir)
-
-    if project_dir is None:
-        expected = args.base_dir / slug
-        print("No project directory found for slug: {}".format(slug), file=sys.stderr)
-        print("The script expects a directory at: {}".format(expected), file=sys.stderr)
-        sys.exit(1)
-
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-    session_paths = find_recent_sessions(project_dir, cutoff)
-
     sessions = []
-    for path in session_paths:
-        entries = parse_jsonl_entries(path)
-        block = build_session_block(path, entries)
-        if block is not None:
-            sessions.append(block)
+
+    if args.global_mode:
+        projects = discover_active_projects(args.base_dir, cutoff)
+        for project in projects:
+            for path in project["recent_sessions"]:
+                entries = parse_jsonl_entries(path)
+                block = build_session_block(path, entries)
+                if block is not None:
+                    block["project_name"] = project["project_name"]
+                    sessions.append(block)
+    else:
+        slug = derive_slug(os.path.abspath(args.project_path))
+        project_dir = find_project_dir(slug, args.base_dir)
+
+        if project_dir is None:
+            expected = args.base_dir / slug
+            print("No project directory found for slug: {}".format(slug), file=sys.stderr)
+            print("The script expects a directory at: {}".format(expected), file=sys.stderr)
+            sys.exit(1)
+
+        session_paths = find_recent_sessions(project_dir, cutoff)
+        for path in session_paths:
+            entries = parse_jsonl_entries(path)
+            block = build_session_block(path, entries)
+            if block is not None:
+                sessions.append(block)
+
     out = write_signals_file(sessions, args.output)
     print(out)
 
