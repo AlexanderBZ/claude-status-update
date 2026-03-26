@@ -7,7 +7,10 @@
   "plugins": [
     {
       "name": "status-update",
-      "source": "./",
+      "source": {
+        "source": "github",
+        "repo": "AlexanderBZ/claude-status-update"
+      },
       "description": "Generate a standup-ready status update from your Claude Code sessions. Run one command, automatically get a clean summary of what you built.",
       "version": "0.2.1",
       "author": {
@@ -26,6 +29,23 @@
         "changelog",
         "daily"
       ]
+    },
+    {
+      "name": "roi-calculator",
+      "source": {
+        "source": "github",
+        "repo": "AlexanderBZ/claude-code-roi-calculator"
+      },
+      "description": "A plugin to calculate the return on investment (ROI) for using Claude Code",
+      "version": "0.1.0",
+      "author": {
+        "name": "Alexander Zwerner and Sebastian Tremblay",
+        "url": "https://github.com/AlexanderBZ"
+      },
+      "homepage": "https://github.com/AlexanderBZ/claude-code-roi-calculator",
+      "repository": "https://github.com/AlexanderBZ/claude-code-roi-calculator",
+      "license": "MIT",
+      "keywords": ["roi", "return on investment", "claude code", "calculator"]
     }
   ]
 }

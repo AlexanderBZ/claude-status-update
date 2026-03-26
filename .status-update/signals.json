@@ -1,0 +1,127 @@
+{
+  "sessions": [
+    {
+      "session_file": "0d84a9d0-3717-4331-a9e3-ade0dc5657b1.jsonl",
+      "timestamp": "2026-03-15T20:36:00.351Z",
+      "signals": [
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:36:00.351Z",
+          "content": "For all of the files that have \"Alexander Zwerner\" change to \"Alexander Zwerner and Sebastian Tremblay\""
+        }
+      ]
+    },
+    {
+      "session_file": "302d04d4-ad29-4d6e-9fd6-3cdb7f52c5b9.jsonl",
+      "timestamp": "2026-03-15T20:26:52.839Z",
+      "signals": [
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:26:52.839Z",
+          "content": "rename my recent commit message and make it more representative of what's being commited"
+        },
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:27:21.014Z",
+          "content": "For any mention of Werner please replace for Zwerner"
+        }
+      ]
+    },
+    {
+      "session_file": "3e4a0c15-8515-4326-84d1-71e6c4e53d80.jsonl",
+      "timestamp": "2026-03-15T22:00:10.105Z",
+      "signals": [
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T22:00:10.105Z",
+          "content": "Update to hgave te marketplace url form"
+        }
+      ]
+    },
+    {
+      "session_file": "53017b90-4375-4172-9e03-5c8031151e85.jsonl",
+      "timestamp": "2026-03-15T20:39:59.376Z",
+      "signals": [
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:39:59.376Z",
+          "content": "Updat ethe based on the project structure"
+        }
+      ]
+    },
+    {
+      "session_file": "78f62cd2-e2f9-47d0-9fc4-339fa3afd4bf.jsonl",
+      "timestamp": "2026-03-15T20:19:13.449Z",
+      "signals": [
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:19:13.449Z",
+          "content": "Add a Claude.md file for this project based on the"
+        },
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:19:24.905Z",
+          "content": "Add a Claude.md file for this project based on the and folder strcuture"
+        },
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:20:22.643Z",
+          "content": "Make it simialrly strcutured to this: # CLAUDE.md\n\nThis file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.\n\n## Commands\n\n```bash\n# Install dependencies (uv preferred)\nuv sync --python 3.12 --extra dev\n\n# Or bootstrap without uv (creates local .venv)\npython scripts/setup.py --dev --skip-audio-test --skip-model-download --no-start\n\n# Run tests\nuv run python -m unittest discover -s tests\n\n# Run single test\nuv run python -m unittest tests.test_config\n\n# Test locally with Claude Code\nclaude --plugin-dir .\n\n# Lint (ruff)\nuv run ruff check src/\n```\n\n## Architecture\n\n**Daemon-based design**: A background process (`STTDaemon`) runs continuously, listening for hotkey events and coordinating audio capture, transcription, and text output.\n\n### Core Components\n\n- `daemon.py` - Process management (start/stop/status, PID file handling, background spawning)\n- `daemon_service.py` - Runtime orchestration (`STTDaemon` class coordinates all components)\n- `hotkey.py` - Global hotkey listener using pynput (supports toggle and push-to-talk modes)\n- `recorder.py` - Audio capture via sounddevice\n- `engines/` - STT engine implementations (Moonshine default, Whisper optional)\n- `keyboard.py` - Text output via keyboard injection or clipboard fallback\n- `window.py` - Platform-specific window tracking to restore focus after transcription\n- `config.py` - TOML-based config with validation, stored in `~/.claude/plugins/claude-stt/`\n\n### Flow\n\n```\nHotkey press \u2192 AudioRecorder.start() \u2192 [user speaks] \u2192 Hotkey release\n \u2192 AudioRecorder.stop() \u2192 Engine.transcribe() \u2192 output_text()\n```\n\nTranscription runs in a dedicated worker thread to avoid blocking the hotkey listener.\n\n### Plugin Structure\n\n- `commands/` - Slash commands (setup, start, stop, status, config) as markdown files\n- `hooks/hooks.json` - Claude Code plugin hooks\n- `scripts/setup.py` - Bootstrap script that handles venv creation, dependency install, model download\n- `.claude-plugin/plugin.json` - Plugin metadata\n\n## Version Bumps\n\nUpdate version in three files:\n- `pyproject.toml`\n- `.claude-plugin/plugin.json`\n- `.claude-plugin/marketplace.json`"
+        }
+      ]
+    },
+    {
+      "session_file": "8397e159-721c-4ef8-bafa-4705aea1af13.jsonl",
+      "timestamp": "2026-03-15T20:22:03.303Z",
+      "signals": [
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:22:03.303Z",
+          "content": "Create a marketplace json file, but made for this project {\n \"name\": \"jarrodwatts-claude-stt\",\n \"owner\": {\n \"name\": \"Jarrod Watts\",\n \"url\": \"https://github.com/jarrodwatts\"\n },\n \"plugins\": [\n {\n \"name\": \"claude-stt\",\n \"source\": \"./\",\n \"description\": \"Speech-to-text input for Claude Code with live streaming dictation. Hold a hotkey, speak, and your words appear in the input field.\",\n \"version\": \"0.1.0\",\n \"author\": {\n \"name\": \"Jarrod Watts\",\n \"url\": \"https://github.com/jarrodwatts\"\n },\n \"homepage\": \"https://github.com/jarrodwatts/claude-stt\",\n \"repository\": \"https://github.com/jarrodwatts/claude-stt\",\n \"license\": \"MIT\",\n \"keywords\": [\n \"speech-to-text\",\n \"stt\",\n \"voice\",\n \"dictation\",\n \"moonshine\",\n \"audio\",\n \"accessibility\"\n ]\n }\n ]\n}"
+        },
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:22:30.196Z",
+          "content": "Do the same for this: {\n \"name\": \"claude-stt\",\n \"description\": \"Speech-to-text input for Claude Code with live streaming dictation\",\n \"version\": \"0.1.0\",\n \"author\": {\n \"name\": \"Jarrod Watts\",\n \"url\": \"https://github.com/jarrodwatts\"\n },\n \"homepage\": \"https://github.com/jarrodwatts/claude-stt\",\n \"repository\": \"https://github.com/jarrodwatts/claude-stt\",\n \"license\": \"MIT\",\n \"keywords\": [\"speech-to-text\", \"stt\", \"voice\", \"dictation\", \"moonshine\", \"audio\", \"accessibility\"]\n}"
+        },
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:22:42.300Z",
+          "content": "Can we add in this github workflow as well please: name: CI\n\non:\n push:\n branches: [main]\n pull_request:\n\njobs:\n tests:\n runs-on: ${{ matrix.os }}\n strategy:\n fail-fast: false\n matrix:\n os: [ubuntu-latest, macos-latest, windows-latest]\n python-version: [\"3.10\", \"3.11\", \"3.12\", \"3.13\"]\n steps:\n - uses: actions/checkout\n\n - uses: actions/setup-python\n with:\n python-version: ${{ matrix.python-version }}\n\n - uses: astral-sh/setup-uv\n\n - name: Install dependencies\n shell: bash\n run: |\n extra=\"\"\n if [[ \"${{ matrix.os }}\" == \"macos-latest\" ]]; then\n extra=\"--extra macos\"\n elif [[ \"${{ matrix.os }}\" == \"windows-latest\" ]]; then\n extra=\"--extra windows\"\n fi\n uv sync --python \"${{ matrix.python-version }}\" $extra\n\n - name: Run tests\n shell: bash\n run: uv run python -m unittest discover -s tests\n\n - name: Setup smoke\n shell: bash\n run: uv run python scripts/setup.py --skip-audio-test --skip-hotkey-test --skip-model-download --no-start"
+        },
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:24:33.372Z",
+          "content": "what does this file even do?"
+        },
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:25:27.457Z",
+          "content": "Add something like this in: [project]\nname = \"claude-stt\"\nversion = \"0.1.0\"\ndescription = \"Speech-to-text input for Claude Code with live streaming dictation\"\nreadme = \"README.md\"\nrequires-python = \">=3.10,<3.14\"\nlicense = \"MIT\"\nauthors = [\n { name = \"Jarrod Watts\", email = \"jarrod\" }\n]\nkeywords = [\"claude\", \"speech-to-text\", \"stt\", \"voice\", \"dictation\"]\n\ndependencies = [\n \"useful-moonshine-onnx\",\n \"sounddevice>=0.4\",\n \"pynput>=1.7\",\n \"pyperclip>=1.8\",\n \"numpy>=1.24\",\n \"tomli>=2.0\",\n \"tomli-w>=1.0\",\n]\n\n[project.optional-dependencies]\nwhisper = [\"faster-whisper>=1.0\"]\nmacos = [\"pyobjc-framework-Cocoa\"]\nwindows = [\"pywin32\"]\ndev = [\"pytest\", \"ruff\"]\n\n[project.scripts]\nclaude-stt = \"claude_stt.cli:main\"\n\n[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/claude_stt\"]\n\n[tool.ruff]\nline-length = 100\ntarget-version = \"py310\""
+        }
+      ]
+    },
+    {
+      "session_file": "8deb28ff-9de1-4b13-9e3f-f29b3cd521dd.jsonl",
+      "timestamp": "2026-03-15T22:03:18.274Z",
+      "signals": [
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T22:03:18.274Z",
+          "content": "<command-message>status-update:generate</command-message>\n<command-name>/status-update:generate</command-name>"
+        }
+      ]
+    },
+    {
+      "session_file": "9aea6faf-6a2f-4c32-a762-4ace9dd7a07d.jsonl",
+      "timestamp": "2026-03-15T20:37:20.814Z",
+      "signals": [
+        {
+          "type": "user",
+          "timestamp": "2026-03-15T20:37:20.814Z",
+          "content": "Create the first slice of"
+        }
+      ]
+    }
+  ]
+}
