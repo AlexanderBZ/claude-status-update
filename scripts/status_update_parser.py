@@ -200,6 +200,12 @@ def main():
         default=Path.cwd() / ".status-update" / "signals.json",
         help="Path to write the extracted signals JSON file.",
     )
+    parser.add_argument(
+        "--hours",
+        type=int,
+        default=24,
+        help="How many hours back to scan for sessions. Defaults to 24.",
+    )
     args = parser.parse_args()
 
     slug = derive_slug(os.path.abspath(args.project_path))
@@ -211,7 +217,7 @@ def main():
         print("The script expects a directory at: {}".format(expected), file=sys.stderr)
         sys.exit(1)
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=args.hours)
     session_paths = find_recent_sessions(project_dir, cutoff)
 
     sessions = []
